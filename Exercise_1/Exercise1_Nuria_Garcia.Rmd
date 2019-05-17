@@ -1,0 +1,50 @@
+---
+title: "Exploratory analysis of a GEO dataset"
+author: "Núria Garcia Deltiempo"
+date: "15/5/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction:
+
+# Summary:
+
+This study titled "The effect of miRNA-135b overexpression on the gene expression profile of LNCaP cells" ----- MicroRNAs (miRNAs) regulate a wide range of cellular signaling pathways and biological processes in both physiological and pathological states such as cancer. We have previously identified miR-135b as a direct regulator of androgen receptor (AR) protein level in prostate cancer (PCa). We wanted to further explore the relationship of miR-135b to hormonal receptors, particularly estrogen receptor α (ERα). Here we show that miR-135b expression inversely correlates with ER protein in two independent breast cancer (BCa) patient cohorts (101 and 1302 samples) and with AR protein in 47 PCa patient samples. We identify ERα as a novel miR-135b target by demonstrating miR-135b binding to the 3’UTR of the ERα and decreased ERα protein and mRNA level in breast cancer cells upon miR-135b overexpression. miR-135b inhibits proliferation of hormone receptor positive cancer cell lines as shown by overexpression in ERα-positive BCa cells (MCF-7) and AR-positive PCa cells (LNCaP, 22Rv1) when grown in 2D. To identify other genes regulated by miR-135b we performed gene expression studies and found a potential link to the hypoxia-inducible factor-1α (HIF1α) pathway. We show that miR-135b influences the protein level of the inhibitor for hypoxia-inducible factor-1 (HIF1AN), which also demonstrated an inverse correlation with miR-135b in a cohort of breast tumor samples. Taken together, our study demonstrates that miR-135b regulates ERα, AR and HIF1AN protein levels and proliferation in ERα -positive breast and AR-positive-prostate cancer cells.
+
+## Contributors:
+Aakula A, Leivonen S, Hintsanen P, Aittokallio T, Ceder Y, Børresen-Dale A, Perälä M, Östling P, Kallioniemi O
+
+##Copy the abstract of the study
+
+
+# Data description:
+
+```{r readTarget}
+target <- read.csv("~/Escritorio/BDBI/Second year/tercer trimestre/Lab2OMICS/taget.txt", header=FALSE)
+expresion <- read.delim("~/Escritorio/BDBI/Second year/tercer trimestre/Lab2OMICS/expresion.txt", row.names = 1)
+```
+```{r}
+dim(expresion)
+summary(expresion)
+boxplot(expresion)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
