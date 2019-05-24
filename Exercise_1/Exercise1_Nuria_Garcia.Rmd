@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Introduction:
+The goal of this practical is to learn how to work with Markdown and Bioconductor and understand the steps that we follow to analyze our data. 
 
 # Summary:
 
@@ -18,20 +19,111 @@ This study titled "The effect of miRNA-135b overexpression on the gene expressio
 ## Contributors:
 Aakula A, Leivonen S, Hintsanen P, Aittokallio T, Ceder Y, Børresen-Dale A, Perälä M, Östling P, Kallioniemi O
 
-##Copy the abstract of the study
-
-
 # Data description:
 
+Here we are introducing the data that we are goig to work with.
 ```{r readTarget}
-target <- read.csv("~/Escritorio/BDBI/Second year/tercer trimestre/Lab2OMICS/taget.txt", header=FALSE)
-expresion <- read.delim("~/Escritorio/BDBI/Second year/tercer trimestre/Lab2OMICS/expresion.txt", row.names = 1)
+target <- read.csv("~/Escritorio/BDBI/Second year/tercer trimestre/Lab2OMICS/taget.txt", sep= "")
+expresion <- as.matrix(read.delim("~/Escritorio/BDBI/Second year/tercer trimestre/Lab2OMICS/expresion.txt", row.names = 1))
 ```
+
+
 ```{r}
 dim(expresion)
 summary(expresion)
 boxplot(expresion)
 ```
+
+Here we are installing the necessary package to handle the data that we have.
+
+```{r}
+require(Biobase)
+```
+
+
+```{r}
+myEset <- ExpressionSet(expresion)
+class(myEset)
+show(myEset)
+
+```
+
+Here we are analyzing the covariates, to see how our data act.
+```{r}
+columnDesc <-  data.frame(labelDescription= c("Sample Names", "Group"))
+myAnnotDF <- new("AnnotatedDataFrame", data=target, varMetadata= columnDesc)
+show(myAnnotDF)
+```
+
+```{r}
+phenoData(myEset) <- myAnnotDF
+```
+
+```{r}
+rownames(pData(myAnnotDF))<-pData(myAnnotDF)$sampleName
+myEset <- ExpressionSet(assayData=expresion, phenoData=myAnnotDF)
+show(myEset)
+```
+
+```{r}
+myEset <- ExpressionSet(assayData=expresion, 
+                        phenoData=myAnnotDF, 
+                        featureNames =myGenes)
+```
+
+Here is where we start storing the data.
+```{r}
+myDesc <- new("MIAME", name= "Anna Aakula",
+            contact= "anna.aakula@fimm.fi" ,
+            title="The effect of miRNA-135b overexpression on the gene expression profile of LNCaP cells")
+print(myDesc)
+```
+
+```{r}
+myEset <- ExpressionSet(assayData=expresion, 
+                        phenoData=myAnnotDF,
+                        fetureNames =myGenes,
+                        experimentData = myDesc)
+```
+
+```{r}
+dim(exprs(myEset))
+class(phenoData(myEset))
+class(pData(phenoData(myEset)))
+head(pData(phenoData(myEset)))
+head(pData(myEset))
+```
+
+Here we apply this functions to make data manipulation consistent.
+```{r}
+smallEset <- myEset[1:15,c(1:3,6:8)]
+dim(exprs(smallEset))
+dim(pData(smallEset))
+head(pData(smallEset))
+all(colnames(exprs(smallEset))==rownames(pData(smallEset)))
+```
+
+Here we are creating the dataset for the young patients, smaller than 30 years.
+```{r}
+youngEset <- myEset[,pData(myEset)$age<30]
+dim(exprs(youngEset))
+head(pData(youngEset))
+```
+
+```{r}
+if (!require(GEOquery)) {
+  BiocManager::install("GEOquery")
+}
+require(GEOquery)
+gse <- getGEO("GSE57820")
+class(gse)
+names(gse)
+gse[[1]]
+esetFromGEO <- gse[[1]]
+
+
+```
+
 
 
 
