@@ -1,0 +1,354 @@
+---
+title: "MA_ Analysis"
+author: "Núria Garcia"
+date: "5/6/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+workingDir <- setwd("~/Escritorio/Garcia_Nuria_OmicsTechniques/Exercise_2")
+dataDir <- file.path(workingDir, "dades")
+resultsDir <- file.path(workingDir, "results")
+setwd(resultsDir) #used to change the diretory
+```
+
+```{r}
+if (!require(BiocManager)) install.packages("BiocManager")
+
+installifnot <- function (pkg){
+  if (!require(pkg, character.only=T)){
+    BiocManager::install(pkg)
+  }else{
+    require(pkg, character.only=T)
+  }
+}
+installifnot("pd.mouse430.2")
+installifnot("pd.mogene.1.0.st.v1")
+installifnot("mogene10sttranscriptcluster.db")
+installifnot("oligo")
+installifnot("limma")
+installifnot("Biobase")
+installifnot("genefilter")
+installifnot("multtest")
+installifnot("annotate")
+installifnot("xtable")
+installifnot("gplots")
+installifnot("scatterplot3d")
+```
+
+##Importing data:
+
+Here we are importing the data nedeed once we know that my dataset has not Cell files.
+
+```{r}
+require(GEOquery)
+gse <- getGEO("GSE57820")
+set <- gse[[1]]
+rawData <- set
+```
+
+Now we should import the targets file to access the data that our dataset has studied.
+
+```{r}
+targets <-read.csv(file=file.path(dataDir,"taget.txt"), header = TRUE, sep = '')
+targets
+```
+
+## Plots:
+
+Once we imported our targets, I decided to assign some names and colors to differenciate the samples.
+
+```{r}
+sampleNames <- as.character(targets$SampleName) 
+sampleColor <- as.character(targets$Color)
+``` 
+
+The following plot will shown as the distribution of our Raw data imported before.
+
+```{r}
+boxplot(rawData, which="all",las=2, main="Intensity distribution of RAW data", 
+        cex.axis=0.6, col=sampleColor, names=sampleNames)
+```
+
+As we can see, all of them follow a similar pattern. One of the things that is different is the small outliners values, that depending on the group are smaller or bit bigger.
+
+In the following step, we compute the clustering diagram of all genes for our Raw data.
+
+```{r}
+clust.euclid.average <- hclust(dist(t(exprs(rawData))),method="average")
+plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering of RawData", 
+     cex=0.7,  hang=-1)
+```
+
+As we have seen they mainly divide into two groups. The fist one englobes 4 samples, then on the second goup we have 8 samples that split into other 3 groups.
+
+Now in this last plot we can see that we just observe one point, that is because our data is not good enough to produce this study and because is not normalized.
+
+```{r}
+plotPCA <- function ( X, labels=NULL, colors=NULL, dataDesc="", scale=FALSE, formapunts=NULL, myCex=0.8,...)
+{
+  pcX<-prcomp(t(X), scale=scale) # o prcomp(t(X))
+  loads<- round(pcX$sdev^2/sum(pcX$sdev^2)*100,1)
+  xlab<-c(paste("PC1",loads[1],"%"))
+  ylab<-c(paste("PC2",loads[2],"%"))
+  if (is.null(colors)) colors=1
+  plot(pcX$x[,1:2],xlab=xlab,ylab=ylab, col=colors, pch=formapunts, 
+       xlim=c(min(pcX$x[,1])-100000, max(pcX$x[,1])+100000),ylim=c(min(pcX$x[,2])-100000, max(pcX$x[,2])+100000))
+  text(pcX$x[,1],pcX$x[,2], labels, pos=3, cex=myCex)
+  title(paste("Plot of first 2 PCs for expressions in", dataDesc, sep=" "), cex=0.8)
+}
+
+plotPCA(exprs(rawData), labels=sampleNames, dataDesc="raw data", colors=sampleColor,
+        formapunts=c(rep(16,4),rep(17,4)), myCex=0.6)
+
+```
+
+IN this command we add all the plots that we performed in a pdf file.
+
+```{r}
+pdf(file.path(resultsDir, "QCPlots_Raw.pdf"))
+boxplot(rawData, which="all",las=2, main="Intensity distribution of RAW data", 
+        cex.axis=0.6, col=sampleColor, names=sampleNames)
+plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering of samples of RawData", 
+     cex=0.7,  hang=-1)
+plotPCA(exprs(rawData), labels=sampleNames, dataDesc="raw data", colors=sampleColor,
+        formapunts=c(rep(16,4),rep(17,4)), myCex=0.6)
+dev.off()
+```
+
+## Normalization of the data:
+
+Now we transform our data into a normalized one.
+```{r}
+require("affyPLM")
+eset <- normalize.ExpressionSet.invariantset(set)
+#eset<-rma(rawData)
+
+write.exprs(eset, file.path(resultsDir, "NormData.txt"))
+```
+
+## Plots of normalized data:
+
+Once we had normalized our data we should do the same steps than before to see how the data changed.
+The results of the box plots are:
+
+```{r}
+boxplot(eset, las=2, main="Intensity distribution of Normalized data", cex.axis=0.6, 
+        col=sampleColor, names=sampleNames)
+```
+
+As we can see there is not many differences between the first boxplot and the second one, but one of the differences once the data is normalized is that we have most of the sample with similar outliners unless GSM1394599.
+
+The following plot will shown the Hierarchical clustering distribution of the normalized data.
+```{r}
+clust.euclid.average <- hclust(dist(t(exprs(eset))),method="average")
+plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering of NormData", 
+     cex=0.7,  hang=-1)
+```
+
+As we the plot shown, there is no difference between the first plot and the second one, because change the normal data into a normalized data would not change the cluster distribution of the samples.
+
+Now we compute the distribution of our samples:
+
+```{r}
+plotPCA <- function ( X, labels=NULL, colors=NULL, dataDesc="", scale=FALSE, formapunts=NULL, myCex=0.8,...)
+{
+  pcX<-prcomp(t(X), scale=scale) # o prcomp(t(X))
+  loads<- round(pcX$sdev^2/sum(pcX$sdev^2)*100,1)
+  xlab<-c(paste("PC1",loads[1],"%"))
+  ylab<-c(paste("PC2",loads[2],"%"))
+  if (is.null(colors)) colors=1
+  plot(pcX$x[,1:2],xlab=xlab,ylab=ylab, col=colors, pch=formapunts, 
+       xlim=c(min(pcX$x[,1])-10, max(pcX$x[,1])+10),ylim=c(min(pcX$x[,2])-10, max(pcX$x[,2])+10))
+  text(pcX$x[,1],pcX$x[,2], labels, pos=3, cex=myCex)
+  title(paste("Plot of first 2 PCs for expressions in", dataDesc, sep=" "), cex=0.8)
+}
+
+plotPCA(exprs(eset), labels=sampleNames, dataDesc="NormData", colors=sampleColor,
+        formapunts=c(rep(16,4),rep(17,4)), myCex=0.6)
+```
+
+As a result we can see that ther is  difference between the fist and the second plot, on the first plot we saw one sample, but now once the data is normalized we can observe all of them.
+About the way they are represented, the different groups does not follow any pattern.
+
+In this command we save all this new plots into a pdf document.
+
+```{r}
+pdf(file.path(resultsDir, "QCPlots_Norm.pdf"))
+boxplot(eset, las=2, main="Intensity distribution of Normalized data", cex.axis=0.6, 
+        col=sampleColor, names=sampleNames)
+plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering of NormData", 
+     cex=0.7,  hang=-1)
+plotPCA(exprs(eset), labels=sampleNames, dataDesc="selected samples", colors=sampleColor,
+        formapunts=c(rep(16,4),rep(17,4)), myCex=0.6)
+dev.off()
+```
+
+```{r}
+arrayQualityMetrics(eset,  reporttitle="QualityControl", force=TRUE)
+```
+
+## Statistical analysis: 
+
+In the next command we will found the amount of genes that our sample is analyzing.
+
+```{r}
+annotation(eset) <- "org.Mm.eg.db"
+eset_filtered <- nsFilter(eset, var.func=IQR,
+                          var.cutoff=0.75, var.filter=TRUE,
+                          filterByQuantile=TRUE)
+#NUMBER OF GENES OUT
+print(eset_filtered$filter.log$numLowVar)
+
+#NUMBER OF GENES IN
+print(eset_filtered$eset)
+```
+
+In this command we are introducing some variables that we need to perfom the following steps, also we are getting the matrix from our data.
+
+```{r}
+#CONTRAST MATRIX.lINEAR MODEL
+treat2 <- factor(c(rep("mir135b",6),rep("Scr",6)))
+design <-model.matrix(~0+treat2)
+colnames(design) <- levels(treat2)
+rownames(design) <- sampleNames
+print(design)
+```
+
+Once the matrix is defined, now we should perform a study of multiple comparisons to found all the variability of our sample.
+
+The matrix of contrast that I obtained from my data is the following:
+
+```{r}
+cont.matrix1 <- makeContrasts(
+  mir135b.vs.rc = mir135b-Scr,   levels = design)
+  comparison1 <- "Effect of Induction"
+```
+  
+Now once the matrix of contrast is obtained, we perform a model fit to have a summary of all information about the genes.
+
+```{r}
+#MODEL FIT
+fit1 <- lmFit(eset_filtered$eset, design)
+fit.main1 <- contrasts.fit(fit1, cont.matrix1)
+fit.main1
+install.packages("limma")
+fit.main1 <- eBayes(fit.main1)
+fit.main1
+```
+  
+
+```{r}
+#FILTER BY FALSE DISCOVERY RATE AND FOLD CHANGE
+topTab <-  topTable (fit.main1, number=nrow(fit.main1), adjust="fdr",lfc=abs(12))
+topTab
+#EXPORTED TO CSV AND HTML FILE
+write.csv2(topTab, file= file.path(resultsDir,paste("Selected.Genes.in.comparison.",
+                                                    comparison1, ".csv", sep = "")))
+install.packages("xtable")
+library(xtable)
+print(xtable(topTab,align="lllllll"),type="html",html.table.attributes="",
+      file=paste("Selected.Genes.in.comparison.",comparison1,".html", sep=""))
+```
+
+```{r}
+#VOLCANO PLOTS
+volcanoplot(fit.main1, highlight=10, names=fit.main1$ID, 
+            main = paste("Differentially expressed genes", colnames(cont.matrix1), sep="\n"))
+abline(v = c(-3, 3))
+
+
+pdf(file.path(resultsDir,"Volcanos.pdf"))
+volcanoplot(fit.main1, highlight = 10, names = fit.main1$ID, 
+            main = paste("Differentially expressed genes", colnames(cont.matrix1), sep = "\n"))
+abline(v = c(-3, 3))
+dev.off()
+
+```
+
+```{r}
+#PREPARE THE DATA
+my_frame <- data.frame(exprs(eset))
+head(my_frame)
+HMdata <- merge(my_frame, topTab, by.x = 0, by.y = 0)
+rownames(HMdata) <- HMdata$Row.names
+HMdata <- HMdata[, -c(1,10:15)]
+head(HMdata)
+HMdata2 <- data.matrix(HMdata, rownames.force=TRUE)
+head(HMdata2)
+write.csv2(HMdata2, file = file.path(resultsDir,"Data2HM.csv"))
+```
+
+```{r}
+#HEATMAP PLOT
+my_palette <- colorRampPalette(c("blue", "red"))(n = 299)
+
+heatmap.2(HMdata2,
+          Rowv=TRUE,
+          Colv=TRUE,
+          main="HeatMap Induced.vs.WT FC>=3",
+          scale="row",
+          col=my_palette,
+          sepcolor="white",
+          sepwidth=c(0.05,0.05),
+          cexRow=0.5,
+          cexCol=0.9,
+          key=TRUE,
+          keysize=1.5,
+          density.info="histogram",
+          ColSideColors=c(rep("red",4),rep("blue",4)),
+          tracecol=NULL,
+          srtCol=30)
+```
+
+```{r}
+#EXPORT TO PDF FILE
+pdf(file.path(resultsDir,"HeatMap InducedvsWT.pdf"))
+heatmap.2(HMdata2,
+          Rowv=TRUE,
+          Colv=TRUE,
+          main="HeatMap Induced.vs.WT FC>=3",
+          scale="row",
+          col=my_palette,
+          sepcolor="white",
+          sepwidth=c(0.05,0.05),
+          cexRow=0.5,
+          cexCol=0.9,
+          key=TRUE,
+          keysize=1.5,
+          density.info="histogram",
+          ColSideColors=c(rep("red",4),rep("blue",4)),
+          tracecol=NULL,
+          srtCol=30)
+dev.off()
+```
+
+```{r}
+
+all_anota<-data.frame(exprs(eset))
+Annot <- data.frame(SYMBOL=sapply(contents(mogene10sttranscriptclusterSYMBOL), paste, collapse=", "),
+                    DESC=sapply(contents(mogene10sttranscriptclusterGENENAME), paste, collapse=", "))
+Annot<-Annot[!Annot$SYMBOL=="NA",]
+Annot<-Annot[!Annot$DESC=="NA",]
+head(Annot)
+
+anotaGenes <- merge(Annot,all_anota, by.x=0,by.y=0)
+head(anotaGenes)
+write.table(anotaGenes, file ="data.ann.txt",sep="\t")
+
+rownames(anotaGenes) <- anotaGenes[,1]
+anotaGenes <- anotaGenes[,-1]
+anotaGenes.end <- merge(anotaGenes, topTab, by.x=0,by.y=0)
+#reordenamos las columnas
+topTab.end <- anotaGenes.end
+topTab.end <- topTab.end
+
+rownames(topTab.end) <- topTab.end[,1]
+topTab.end <- topTab.end[, -1]
+write.csv(topTab.end, file = file.path(resultsDir,"TopTable.end.csv"))
+
+```
